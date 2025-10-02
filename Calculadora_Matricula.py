@@ -115,7 +115,7 @@ def main_app():
     """Main function to run the Streamlit calculator interface."""
     
     st.title("Calculadora de Créditos y Matrícula 🎓")
-     st.title("Luis Emir Guerrero Duran 🎓")
+    st.title("Luis Emir Guerrero Duran 🎓")
 
     # --- User Inputs ---
     col1, col2 = st.columns(2)
