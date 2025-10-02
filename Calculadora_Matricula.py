@@ -116,26 +116,22 @@ if st.button("Calcular"):
                 solucion_encontrada = True
                 break
 
-    elif tipo_estudio in ["especializacion", "maestria"] and len(valores_credito) >= 1:
-        v1 = valores_credito[0]
-        calculado = total_creditos * v1
+   elif tipo_estudio in ["especializacion", "maestria"] and len(valores_credito) >= 1:
+    v1 = valores_credito[0]
 
-        if calculado == valor_total:
-            st.success(f"El estudiante matriculó **{total_creditos}** créditos, todos valorados en **${v1:,}**.")
+    # Cálculo del número exacto de créditos
+    if v1 > 0:
+        creditos_calculados = valor_total / v1
+        creditos_redondeados = round(creditos_calculados)
+
+        if abs(creditos_calculados - creditos_redondeados) < 0.05:
+            # Si el valor total corresponde casi exactamente a un número de créditos
+            st.success(f"Según el valor total ingresado (${valor_total:,}), el estudiante habría matriculado **{creditos_redondeados}** créditos a ${v1:,} cada uno.")
+            if creditos_redondeados != total_creditos:
+                st.info(f"Nota: el número de créditos ingresado fue **{total_creditos}**, pero el valor total sugiere que fueron **{creditos_redondeados}** créditos.")
             solucion_encontrada = True
-
-        elif valor_total > 0 and v1 > 0 and valor_total % v1 == 0:
-            creditos_calculados = valor_total // v1
-            st.success(f"Según el valor total (${valor_total:,}) y el costo del crédito (${v1:,}), se calcularon **{creditos_calculados}** créditos.")
-            st.info(f"El número de créditos introducido fue **{total_creditos}**, lo cual no coincide con el cálculo. La matrícula corresponde a {creditos_calculados} créditos.")
-            solucion_encontrada = True
-
-        elif abs(calculado - valor_total) <= 1000:
-            st.warning(f"El valor ingresado (${valor_total:,}) está muy cerca de lo esperado (${calculado:,}), puede haber un pequeño error de redondeo o digitación.")
-            solucion_encontrada = True
-
         else:
-            st.error(f"El valor total ingresado no coincide con el costo por crédito. Revísalo.")
+            st.error("El valor total no corresponde a un número válido de créditos con el valor actual por crédito.")
 
     if not solucion_encontrada:
         st.error("No existe una combinación exacta de créditos que sume el valor total ingresado.")
