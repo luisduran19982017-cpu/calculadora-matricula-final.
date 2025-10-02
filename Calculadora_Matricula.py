@@ -101,12 +101,11 @@ ano = st.selectbox("Selecciona el año de la matrícula", options=options_anos)
 valores_ano = valores.get(ano, {})
 tipos_disponibles = sorted([
     t for t in ["pregrado", "especializacion", "maestria", "tecnologia"]
-    if t in valores_ano and (len(valores_ano.get(t, [])) > 0 and (valores_ano.get(t, [])[0] != 0))
+    if t in valores_ano and valores_ano.get(t, [0])[0] > 0  # Asegura que no sea 0 o lista vacía
 ])
 
-# Si no hay tipos disponibles, se muestra un mensaje (esto no debería pasar con los datos actuales)
 if not tipos_disponibles:
-    tipos_disponibles = ["pregrado"] # Fallback para evitar error
+    tipos_disponibles = ["pregrado"]  # Fallback
 
 tipo_estudio = st.selectbox("Selecciona el tipo de estudio", options=tipos_disponibles)
 
@@ -114,53 +113,36 @@ tipo_estudio = st.selectbox("Selecciona el tipo de estudio", options=tipos_dispo
 valor_inscripcion = valores_inscripcion.get(ano, 0)
 valor_seguro = 9000
 
-# Mostrar los valores automáticamente
+# Mostrar valores de referencia
 st.write(f"**Valores de referencia para {ano} y {tipo_estudio.capitalize()}:**")
-
-# Valores del tipo de estudio seleccionado
 valores_credito = valores_ano.get(tipo_estudio, [0])
 
-if tipo_estudio == "pregrado" or tipo_estudio == "tecnologia":
+if tipo_estudio in ["pregrado", "tecnologia"]:
     if len(valores_credito) == 2:
         st.write(f"Crédito Tipo 1: ${valores_credito[0]:,}, Crédito Tipo 2: ${valores_credito[1]:,}")
     else:
-         st.write(f"Valor de Crédito único: ${valores_credito[0]:,}")
-elif tipo_estudio == "especializacion" or tipo_estudio == "maestria":
+        st.write(f"Valor de Crédito único: ${valores_credito[0]:,}")
+elif tipo_estudio in ["especializacion", "maestria"]:
     st.write(f"Valor de Crédito: ${valores_credito[0]:,}")
 
 st.write(f"Valor de Inscripción (Referencia): ${valor_inscripcion:,}")
 st.write(f"Valor del Seguro (Fijo): ${valor_seguro:,}")
 
+# --- Cálculo al presionar botón ---
 if st.button("Calcular"):
     solucion_encontrada = False
-    
+
     if not valores_credito or valores_credito[0] == 0:
         st.error(f"No hay valores de crédito definidos para '{tipo_estudio}' en '{ano}'.")
-    
-    # Pregrado y Tecnología (dos valores de crédito)
-    elif (tipo_estudio == "pregrado" or tipo_estudio == "tecnologia") and len(valores_credito) == 2:
+    # Pregrado y Tecnología
+    elif tipo_estudio in ["pregrado", "tecnologia"] and len(valores_credito) == 2:
         v1, v2 = valores_credito
-        # Búsqueda de combinaciones (v1 * x + v2 * y)
         for x in range(total_creditos + 1):
             y = total_creditos - x
             if v1 * x + v2 * y == valor_total:
                 st.success(f"El estudiante matriculó {x} créditos de **${v1:,}** y {y} créditos de **${v2:,}**.")
                 solucion_encontrada = True
                 break
-    
-    # Especialización y Maestría (un solo valor de crédito)
-    elif (tipo_estudio == "especializacion" or tipo_estudio == "maestria") and len(valores_credito) >= 1:
-        v1 = valores_credito[0]
-        # Verificación si el total corresponde al total de créditos ingresado
-        if total_creditos * v1 == valor_total:
-            st.success(f"El estudiante matriculó **{total_creditos}** créditos, todos valorados en **${v1:,}**.")
-            solucion_encontrada = True
-        # Verificación si el valor total es divisible por el valor del crédito
-        elif valor_total > 0 and v1 > 0 and valor_total % v1 == 0:
-            creditos_calculados = valor_total // v1
-            st.success(f"Según el valor total (${valor_total:,}) y el costo del crédito (${v1:,}), se calcularon **{creditos_calculados}** créditos.")
-            st.info(f"El número de créditos introducido fue **{total_creditos}**, lo cual no coincide con el cálculo. La matrícula corresponde a {creditos_calculados} créditos.")
-            solucion_encontrada = True
-        
-    if not solucion_encontrada:
-        st.error("No existe una combinación exacta de créditos que sume el valor total ingresado.")
+    # Especialización y Maestría
+    elif tipo_estudio in ["especializacion", "maestria"] and len(valores_credito) >= 1:
+       
