@@ -2,71 +2,82 @@ import streamlit as st
 
 # ==============================================================================
 # 1. Configuration Data
-#    - Los valores de ESPECIALIZACION han sido actualizados/revisados.
-#    - Se asume que los dos valores de crédito de la imagen (VLR CREDITO, INSCRIPCION)
-#      para especialización son:
-#      1. El Valor del Crédito (VLR CREDITO)
-#      2. El Valor de la Inscripción (INSCRIPCION) - ¡ERROR de concepto en el prompt, la inscripción es un costo aparte!
-#      
-#    CORRECCIÓN: Se mantiene la estructura original. Los dos "valores" de especialización
-#    se refieren al Valor del Crédito (VLR CREDITO) que es diferente del código original,
-#    y el Valor de la Inscripción.
-#
-#    Actualizaré:
-#    a) VALORES_CREDITO: para 'especializacion' con el valor de la columna 'VLR CREDITO'.
-#    b) VALORES_INSCRIPCION: para 'especializacion' con el valor de la columna 'INSCRIPCION'.
 #    
-#    ¡La imagen tiene más de 20 filas sin año! Solo actualizaré las filas con años conocidos.
+#    Valores actualizados de ESPECIALIZACION y MAESTRIA basados en la última imagen.
+#    
+#    Nota: Se asume que el valor de inscripción para Maestría en 2018 es el mismo 
+#    que en 2019 (185.000), ya que la casilla está vacía en la tabla. 
+#    Para la Inscripción de Especialización y Maestría, se han usado los valores 
+#    de la tabla cuando están disponibles.
 # ==============================================================================
 
 # --- Credit values per year and study type ---
 VALORES_CREDITO = {
-    "2006-1": {"pregrado": [43000, 60000], "especializacion": [96000]},
-    "2006-2": {"pregrado": [46000, 60000], "especializacion": [96000]},
-    "2007-1": {"pregrado": [46000, 61000], "especializacion": [97000]},
-    "2007-2": {"pregrado": [49000, 61000], "especializacion": [97000]},
-    "2008-1": {"pregrado": [52000, 65000], "especializacion": [103000]},
-    "2009-1": {"pregrado": [56000, 70000], "especializacion": [111000]},
-    "2010-1": {"pregrado": [58000, 72000], "especializacion": [115000]},
-    "2011-1": {"pregrado": [60000, 75000], "especializacion": [119000]},
-    "2012-1": {"pregrado": [63000, 79000], "especializacion": [126000]},
-    "2013-1": {"pregrado": [66000, 82000], "especializacion": [130000]},
-    "2014":   {"pregrado": [69000, 87000], "especializacion": [137000]},
-    # --- Actualización de Especialización (VLR CREDITO) desde la imagen ---
-    "2015":   {"pregrado": [70000, 90000], "especializacion": [170000], "maestria": [419000]}, # Antes: 144000
-    "2016":   {"pregrado": [77000, 84700], "especializacion": [170000], "maestria": [448000]}, # Antes: 154000
-    "2017":   {"pregrado": [83000, 91000], "especializacion": [171000], "maestria": [480000]}, # Antes: 165000
-    "2018":   {"pregrado": [88000, 97000], "tecnologia": [88000, 97000], "especializacion": [182000], "maestria": [508000], "homologacion": [23000]}, # Antes: 0
-    "2019":   {"pregrado": [93000, 102000], "tecnologia": [93000, 102000], "especializacion": [194000], "maestria": [538000], "homologacion": [25000]}, # Antes: 185000
-    "2020":   {"pregrado": [98000, 108000], "tecnologia": [98000, 107500], "especializacion": [209000], "maestria": [571000], "homologacion": [26000]}, # Antes: 196000
-    "2021":   {"pregrado": [102000, 112000], "tecnologia": [91000, 100000], "especializacion": [216000], "maestria": [591000], "homologacion": [27000]}, # Antes: 203000
-    "2022":   {"pregrado": [112000, 123000], "tecnologia": [100000, 110000], "especializacion": [225000], "maestria": [650000], "homologacion": [30000]}, # Antes: 223000
-    "2023":   {"pregrado": [123000, 135000], "tecnologia": [110000, 121000], "especializacion": [238000], "maestria": [715000], "homologacion": [35000]}, # Antes: 259000
-    "2024":   {"pregrado": [146000, 160000], "tecnologia": [130000, 143000], "especializacion": [248000], "maestria": [715000], "homologacion": [39000]}, # Antes: 290000
-    "2025":   {"pregrado": [159000, 175000], "tecnologia": [142000, 157000], "especializacion": [259000], "maestria": [925000], "homologacion": [43000]}  # Antes: 317000
+    # Valores de Crédito (VLR CREDITO)
+    "2006-1": {"pregrado": [43000, 60000], "especializacion": [170000]},
+    "2006-2": {"pregrado": [46000, 60000], "especializacion": [170000]},
+    "2007-1": {"pregrado": [46000, 61000], "especializacion": [171000]},
+    "2007-2": {"pregrado": [49000, 61000], "especializacion": [182000]},
+    "2008-1": {"pregrado": [52000, 65000], "especializacion": [194000]},
+    "2009-1": {"pregrado": [56000, 70000], "especializacion": [209000]},
+    "2010-1": {"pregrado": [58000, 72000], "especializacion": [216000]},
+    "2011-1": {"pregrado": [60000, 75000], "especializacion": [225000]},
+    "2012-1": {"pregrado": [63000, 79000], "especializacion": [238000]},
+    "2013-1": {"pregrado": [66000, 82000], "especializacion": [248000]},
+    "2014":   {"pregrado": [69000, 87000], "especializacion": [259000]},
+    
+    # Valores de 2015 en adelante (Crédito Especialización y Maestría)
+    "2015":   {"pregrado": [70000, 90000], "especializacion": [271000], "maestria": [419000]},
+    "2016":   {"pregrado": [77000, 84700], "especializacion": [290000], "maestria": [448000]},
+    "2017":   {"pregrado": [83000, 91000], "especializacion": [310000], "maestria": [480000]},
+    "2018":   {"pregrado": [88000, 97000], "tecnologia": [88000, 97000], "especializacion": [328000], "maestria": [508000], "homologacion": [23000]},
+    "2019":   {"pregrado": [93000, 102000], "tecnologia": [93000, 102000], "especializacion": [348000], "maestria": [538000], "homologacion": [25000]},
+    "2020":   {"pregrado": [98000, 108000], "tecnologia": [98000, 107500], "especializacion": [369000], "maestria": [571000], "homologacion": [26000]},
+    "2021":   {"pregrado": [102000, 112000], "tecnologia": [91000, 100000], "especializacion": [382000], "maestria": [591000], "homologacion": [27000]},
+    "2022":   {"pregrado": [112000, 123000], "tecnologia": [100000, 110000], "especializacion": [420000], "maestria": [650000], "homologacion": [30000]},
+    "2023":   {"pregrado": [123000, 135000], "tecnologia": [110000, 121000], "especializacion": [462000], "maestria": [715000], "homologacion": [35000]},
+    "2024":   {"pregrado": [146000, 160000], "tecnologia": [130000, 143000], "especializacion": [462000], "maestria": [715000], "homologacion": [39000]},
+    "2025":   {"pregrado": [159000, 175000], "tecnologia": [142000, 157000], "especializacion": [598000], "maestria": [925000], "homologacion": [43000]}
 }
 
 # --- Registration (Inscripción) value per year ---
 VALORES_INSCRIPCION = {
-    # --- Actualización de Inscripción (INSCRIPCION) desde la imagen ---
-    "2006-1": 60000, "2006-2": 60000, "2007-1": 61000, "2007-2": 61000,
-    "2008-1": 65000, "2009-1": 70000, "2010-1": 72000, "2011-1": 75000,
-    "2012-1": 79000, "2013-1": 82000, "2014": 87000, 
-    "2015": 96000, # Antes: 90000
-    "2016": 96000, # Antes: 97000
-    "2017": 97000, # Antes: 103000
-    "2018": 97000, # Antes: 109000 (La imagen es 97000, el código original tenía 109000)
-    "2019": 103000, # Antes: 116000
-    "2020": 111000, # Antes: 123000
-    "2021": 115000, # Antes: 127000
-    "2022": 119000, # Antes: 140000
-    "2023": 126000, # Antes: 162000
-    "2024": 130000, # Antes: 182000
-    "2025": 137000 # Antes: 199000
+    # Valores de Inscripción (INSCRIPCION ESPECIALIZACION)
+    "2006-1": 96000, "2006-2": 96000, "2007-1": 97000, "2007-2": 97000,
+    "2008-1": 103000, "2009-1": 111000, "2010-1": 115000, "2011-1": 119000,
+    "2012-1": 126000, "2013-1": 130000, "2014": 137000, 
+    
+    # Valores de 2015 en adelante (Inscripción Especialización y Maestría)
+    "2015": 144000, 
+    "2016": 154000, 
+    "2017": 165000, 
+    # Inscripción Maestría solo aparece desde 2019, usaremos el mismo valor si es pregrado/tecnologia
+    # Para 2018, la Maestría está vacía. Se mantiene 185000 si se selecciona Maestría.
+    "2018": 185000, 
+    "2019": 185000, 
+    "2020": 196000, 
+    "2021": 203000, 
+    "2022": 223000, 
+    "2023": 259000, 
+    "2024": 290000, 
+    "2025": 317000
 }
 
 # --- Fixed Insurance Value (Valor de Seguro) ---
 VALOR_SEGURO_FIJO = 9000
+
+# Diccionario para mapear los valores de inscripción específicos de Maestría (si son diferentes)
+INSCRIPCION_MAESTRIA_ESPECIAL = {
+    "2019": 185000,
+    "2020": 196000,
+    "2021": 203000,
+    "2022": 223000,
+    "2023": 259000,
+    "2024": 290000,
+    "2025": 317000
+    # Se asume que en los años anteriores, la inscripción de Maestría era 0 o el mismo valor de la Especialización
+}
+
 
 # ==============================================================================
 # 2. Custom CSS Styles
@@ -121,7 +132,6 @@ def main_app():
     # --- Study Type Selection (Filtered by Year) ---
     valores_ano = VALORES_CREDITO.get(ano, {})
     
-    # Filter available study types for the selected year
     tipos_disponibles = sorted([
         t for t in ["pregrado", "tecnologia", "especializacion", "maestria", "homologacion"]
         if t in valores_ano and (isinstance(valores_ano[t], list) and len(valores_ano[t]) > 0 and valores_ano[t][0] > 0)
@@ -134,7 +144,12 @@ def main_app():
     tipo_estudio = st.selectbox("Selecciona el tipo de estudio", options=tipos_disponibles)
 
     # Get specific values for the selection
-    valor_inscripcion = VALORES_INSCRIPCION.get(ano, 0)
+    # Utilizar el diccionario especial para Maestría, sino, usar el general.
+    if tipo_estudio == "maestria" and ano in INSCRIPCION_MAESTRIA_ESPECIAL:
+        valor_inscripcion = INSCRIPCION_MAESTRIA_ESPECIAL.get(ano, 0)
+    else:
+        valor_inscripcion = VALORES_INSCRIPCION.get(ano, 0)
+        
     valor_seguro = VALOR_SEGURO_FIJO
     valores_credito = valores_ano.get(tipo_estudio, [0])
 
@@ -147,7 +162,6 @@ def main_app():
     if tipo_estudio in ["pregrado", "tecnologia"] and len(valores_credito) == 2:
         st.write(f"🏷️ **Crédito Tipo 1:** ${valores_credito[0]:,} | **Crédito Tipo 2:** ${valores_credito[1]:,}")
     elif len(valores_credito) >= 1 and valores_credito[0] > 0:
-        # Esto incluye a Especialización con su valor único de crédito (VLR CREDITO)
         st.write(f"🏷️ **Valor de Crédito único:** ${valores_credito[0]:,}")
     else:
         st.warning("El valor del crédito es 0 o no está definido. No se puede calcular.")
@@ -171,11 +185,13 @@ def main_app():
         if tipo_estudio in ["pregrado", "tecnologia"] and len(valores_credito) == 2:
             v1, v2 = valores_credito
             
+            # Use the input total credits for the loop constraint
             if v1 > v2: v1, v2 = v2, v1
             
             for x in range(total_creditos + 1):
                 y = total_creditos - x
                 
+                # Check if the combination sums up to the total value
                 if v1 * x + v2 * y == valor_creditos_neto:
                     st.balloons()
                     st.success(f"""
