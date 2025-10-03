@@ -113,7 +113,7 @@ def main_app():
     """Main function to run the Streamlit calculator interface."""
     
     st.title("Calculadora de Distribución de Créditos 🛠️")
-    st.header("Cálculo Automático por Valor Neto")
+    st.header("Luis Emir Guerrero Duran")
 
     # --- User Inputs (Only the total cost is required) ---
     col1, col2 = st.columns([3, 1])
