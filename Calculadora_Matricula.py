@@ -106,168 +106,192 @@ def apply_custom_css():
     """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 3. Main Application Logic
+# 3. Core Deduction Functions
+# ==============================================================================
+
+def buscar_distribucion(costo_neto, valores_credito, tipo_estudio):
+    """
+    Intenta deducir la distribución de créditos (x créditos a v1, y créditos a v2)
+    que coincide exactamente con el costo neto.
+    Retorna (es_solucion, detalles, total_creditos) o (False, None, 0).
+    """
+    
+    # Caso 1: Dos Tipos de Crédito (Pregrado/Tecnologia)
+    if tipo_estudio in ["pregrado", "tecnologia"] and len(valores_credito) == 2:
+        v1, v2 = sorted(valores_credito)
+        
+        # Optimización: solo buscar en un rango razonable
+        max_creditos_v2 = int(costo_neto / v2) + 1
+        max_creditos_v2 = min(max_creditos_v2, 30) 
+        
+        for x in range(max_creditos_v2 + 1):
+            costo_v2 = v2 * x
+            resto = costo_neto - costo_v2
+            
+            if resto < 0:
+                continue 
+
+            if resto % v1 == 0:
+                y = resto // v1 
+                
+                if y == int(y):
+                    creditos_v1 = int(y)
+                    creditos_v2 = x
+                    total_creditos = creditos_v1 + creditos_v2
+                    
+                    detalles = {
+                        "v1": v1, "c1": creditos_v1, 
+                        "v2": v2, "c2": creditos_v2
+                    }
+                    return (True, detalles, total_creditos)
+
+    # Caso 2: Un Solo Tipo de Crédito (Especializacion/Maestria/Homologacion)
+    elif len(valores_credito) >= 1 and valores_credito[0] > 0:
+        v1 = valores_credito[0]
+        
+        if costo_neto % v1 == 0:
+            total_creditos = costo_neto // v1
+            
+            detalles = {"v1": v1, "c1": total_creditos}
+            return (True, detalles, total_creditos)
+            
+    return (False, None, 0)
+
+
+def buscar_ano_inverso(costo_neto, tipo_estudio):
+    """
+    Busca el primer año donde el costo_neto puede ser explicado por la tarifa
+    del tipo_estudio seleccionado.
+    """
+    resultados = []
+    
+    # 1. Recorrer todos los años
+    for ano in VALORES_CREDITO.keys():
+        
+        valores_ano = VALORES_CREDITO.get(ano, {})
+        
+        # 2. Verificar que el tipo de estudio exista para el año
+        if tipo_estudio not in valores_ano:
+            continue
+            
+        valores_credito = valores_ano[tipo_estudio]
+        
+        # 3. Intentar deducir la distribución para este año
+        es_solucion, detalles_creditos, total_creditos = buscar_distribucion(
+            costo_neto, 
+            valores_credito, 
+            tipo_estudio
+        )
+        
+        if es_solucion:
+            # Si encuentra una solución, obtén los costos fijos para el resultado
+            tipo_estudio_key = tipo_estudio if tipo_estudio != "homologacion" else "pregrado"
+            
+            valores_inscripcion_por_ano = VALORES_INSCRIPCION_POR_TIPO.get(ano, {})
+            valor_inscripcion = valores_inscripcion_por_ano.get(tipo_estudio_key, 0)
+            
+            valor_seguro = VALOR_SEGURO_FIJO
+            
+            resultados.append({
+                "ano": ano,
+                "costo_neto": costo_neto,
+                "total_creditos": total_creditos,
+                "inscripcion": valor_inscripcion,
+                "seguro": valor_seguro,
+                "detalles_creditos": detalles_creditos
+            })
+            
+            # Devolvemos el primer resultado que encontramos (asumiendo unicidad)
+            return resultados
+
+    return resultados
+
+# ==============================================================================
+# 4. Main Application Interface
 # ==============================================================================
 
 def main_app():
     """Main function to run the Streamlit calculator interface."""
     
-    st.title("Calculadora de Distribución de Créditos 🛠️")
+    st.title("Calculadora de Matrícula (Búsqueda Inversa) 🕵️")
     st.header("Luis Emir Guerrero Duran")
 
-    # --- User Inputs (Only the total cost is required) ---
-    col1, col2 = st.columns([3, 1])
+    # --- Available Study Types (Simplification) ---
+    tipos_totales = ["pregrado", "tecnologia", "especializacion", "maestria", "homologacion"]
+    
+    # --- User Inputs ---
+    col1, col2 = st.columns(2)
     
     with col1:
         valor_creditos_neto = st.number_input("Valor NETO de los Créditos ($)", min_value=0, step=1000, format="%d", 
-                                     help="Ingrese el costo total que cubren solo los créditos académicos. El programa deducirá el número de créditos.")
+                                     help="Ingrese el costo total que cubren solo los créditos académicos.")
     
-    # --- Year Selection ---
-    options_anos = list(VALORES_CREDITO.keys())
-    ano = st.selectbox("Selecciona el año de la matrícula", options=options_anos)
-
-    # --- Study Type Selection (Default to Pregrado, but still selectable) ---
-    valores_ano = VALORES_CREDITO.get(ano, {})
-    
-    # 1. Filtra los tipos de estudio disponibles para el año seleccionado
-    tipos_disponibles = sorted([
-        t for t in ["pregrado", "tecnologia", "especializacion", "maestria", "homologacion"]
-        if t in valores_ano and (isinstance(valores_ano[t], list) and len(valores_ano[t]) > 0 and valores_ano[t][0] > 0)
-    ])
-
-    if not tipos_disponibles:
-        st.error(f"❌ Error: No hay tipos de estudio con valores de crédito definidos para el año {ano}.")
-        return 
-
-    # 2. Establece el índice predeterminado a 'pregrado'
-    try:
-        default_index = tipos_disponibles.index("pregrado")
-    except ValueError:
-        # Si 'pregrado' no está disponible para ese año, usa el primer tipo disponible
-        default_index = 0
-        
-    # 3. Muestra el selector con el valor predeterminado
-    tipo_estudio = st.selectbox(
-        "Selecciona el tipo de estudio", 
-        options=tipos_disponibles, 
-        index=default_index,
-        key=f"tipo_estudio_{ano}" # Clave para que se actualice al cambiar el año
-    )
-
-
-    # ==========================================================================
-    # Get specific values for the selection
-    # ==========================================================================
-    
-    tipo_estudio_key = tipo_estudio
-    if tipo_estudio == "homologacion":
-        tipo_estudio_key = "pregrado" # Asume que usa la tarifa base de pregrado
-        
-    valores_inscripcion_por_ano = VALORES_INSCRIPCION_POR_TIPO.get(ano, {})
-    valor_inscripcion = valores_inscripcion_por_ano.get(tipo_estudio_key, 0)
-        
-    valor_seguro = VALOR_SEGURO_FIJO
-    valores_credito = valores_ano.get(tipo_estudio, [0])
-    
-    st.markdown("---")
-    
-    # --- Reference Values Display ---
-    st.subheader("Valores Fijos y de Referencia por Año")
-    st.info(f"**Año:** {ano} | **Tipo de Estudio:** {tipo_estudio.capitalize()}")
-    
-    if tipo_estudio in ["pregrado", "tecnologia"] and len(valores_credito) == 2:
-        st.write(f"🏷️ **Crédito Tipo 1:** ${valores_credito[0]:,} | **Crédito Tipo 2:** ${valores_credito[1]:,}")
-    elif len(valores_credito) >= 1 and valores_credito[0] > 0:
-        st.write(f"🏷️ **Valor de Crédito único:** ${valores_credito[0]:,}")
-    else:
-        st.warning("El valor del crédito es 0 o no está definido. No se puede calcular.")
-        return
-
-    if valor_inscripcion > 0:
-        st.write(f"📝 **Costo de Inscripción ({tipo_estudio.capitalize()}):** ${valor_inscripcion:,}")
-    else:
-        st.write(f"📝 **Costo de Inscripción ({tipo_estudio.capitalize()}):** No definido en la tabla para este año/tipo.")
-
-    st.write(f"🛡️ **Costo del Seguro (Fijo):** ${valor_seguro:,}")
+    with col2:
+        # Establece 'pregrado' como valor inicial
+        default_index = tipos_totales.index("pregrado")
+        tipo_estudio = st.selectbox(
+            "Selecciona el tipo de estudio", 
+            options=tipos_totales, 
+            index=default_index
+        )
     
     st.markdown("---")
 
-    # --- Calculation Logic (Deduction based on cost) ---
-    if st.button("Deducir Distribución de Créditos"):
+    # --- Calculation Trigger ---
+    if st.button("Buscar Año y Distribución"):
         
-        costo_total_creditos = valor_creditos_neto
-        solucion_encontrada = False
-        
-        detalle_creditos = ""
-        total_creditos_deducidos = 0
-
-        # Case 1: Two Credit Types (Pregrado/Tecnologia) - DEDUCTION LOGIC
-        if tipo_estudio in ["pregrado", "tecnologia"] and len(valores_credito) == 2:
-            v1, v2 = sorted(valores_credito)
+        if valor_creditos_neto <= 0:
+            st.warning("⚠️ Por favor, ingrese un Valor Neto de Créditos válido (mayor que cero).")
+            return
             
-            # Límite de búsqueda práctico basado en el costo
-            max_creditos_v2 = int(costo_total_creditos / v2) + 1
-            max_creditos_v2 = min(max_creditos_v2, 30) 
+        with st.spinner(f"Buscando año y distribución para {tipo_estudio.capitalize()} y ${valor_creditos_neto:,}..."):
             
-            for x in range(max_creditos_v2 + 1):
-                costo_v2 = v2 * x
-                resto = costo_total_creditos - costo_v2
+            # Ejecutar la búsqueda inversa
+            resultados = buscar_ano_inverso(valor_creditos_neto, tipo_estudio)
+            
+            if resultados:
+                st.subheader("✅ Resultado Encontrado: Distribución y Año Deducido ✅")
                 
-                if resto < 0:
-                    continue 
-
-                if resto % v1 == 0:
-                    y = resto // v1 
+                # Mostrar solo el primer (y más probable) resultado
+                res = resultados[0]
+                
+                # --- Secciones de Resultado ---
+                st.markdown(f"## 📅 Año Deducido: **{res['ano']}**")
+                
+                st.info(f"**Tipo de Estudio:** {tipo_estudio.capitalize()}")
+                
+                st.markdown("#### Detalle de la Distribución de Créditos:")
+                
+                detalles = res['detalles_creditos']
+                
+                if 'v2' in detalles:
+                    # Dos tipos de créditos
+                    costo1 = detalles['v1'] * detalles['c1']
+                    costo2 = detalles['v2'] * detalles['c2']
+                    st.write(f"- **{detalles['c1']}** créditos a **${detalles['v1']:,}** cada uno (Total: **${costo1:,}**)")
+                    st.write(f"- **{detalles['c2']}** créditos a **${detalles['v2']:,}** cada uno (Total: **${costo2:,}**)")
                     
-                    if y == int(y):
-                        creditos_v1 = int(y)
-                        creditos_v2 = x
-                        
-                        total_creditos_deducidos = creditos_v1 + creditos_v2
-                        
-                        detalle_creditos = f"""
-                            - **{creditos_v1}** créditos a **${v1:,}** cada uno (Total: ${v1 * creditos_v1:,})
-                            - **{creditos_v2}** créditos a **${v2:,}** cada uno (Total: ${v2 * creditos_v2:,})
-                            """
-                        solucion_encontrada = True
-                        break
-            
-            if not solucion_encontrada:
-                st.error(f"❌ No existe una combinación exacta de créditos de **${v1:,}** y **${v2:,}** que sume el valor neto ingresado (${costo_total_creditos:,}).")
+                    st.markdown(f"**TOTAL DE CRÉDITOS MATRICULADOS:** **{res['total_creditos']}**")
+                else:
+                    # Un solo tipo de crédito
+                    costo1 = detalles['v1'] * detalles['c1']
+                    st.write(f"- **{detalles['c1']}** créditos a **${detalles['v1']:,}** cada uno (Total: **${costo1:,}**)")
+                    
+                    st.markdown(f"**TOTAL DE CRÉDITOS MATRICULADOS:** **{res['total_creditos']}**")
 
-        # Case 2: Single Credit Type 
-        elif len(valores_credito) >= 1 and valores_credito[0] > 0:
-            v1 = valores_credito[0]
-            
-            if costo_total_creditos % v1 == 0:
-                total_creditos_deducidos = costo_total_creditos // v1
+                st.markdown("---")
+                st.markdown("#### Costos Fijos de Referencia (Año Deducido):")
+                st.write(f"📝 **Costo de Inscripción ({res['ano']}):** ${res['inscripcion']:,}")
+                st.write(f"🛡️ **Costo del Seguro (Fijo):** ${res['seguro']:,}")
                 
-                detalle_creditos = f"- **{total_creditos_deducidos}** créditos a **${v1:,}** cada uno (Total: ${costo_total_creditos:,})"
-                solucion_encontrada = True
-            
+                st.markdown(f'<div class="stTotalCreditos">VALOR NETO DE CRÉDITOS CONFIRMADO: ${res["costo_neto"]:,}</div>', unsafe_allow_html=True)
+                
             else:
-                creditos_calculados = costo_total_creditos / v1
-                
-                st.error(f"""
-                    ❌ El valor neto (${costo_total_creditos:,}) no corresponde a un número entero válido de créditos a ${v1:,} cada uno.
-                    - El cálculo arroja **{creditos_calculados:,.2f}** créditos.
-                    """)
-        
-        # --- Final Results Display ---
-        if solucion_encontrada:
-            st.subheader("✅ Distribución de Créditos Deducida ✅")
-            
-            st.markdown("#### Detalle de la Distribución:")
-            st.markdown(f"**Total de Créditos Deducidos:** **{total_creditos_deducidos}**")
-            st.markdown(detalle_creditos)
-            
-            st.markdown("---")
-
-            st.markdown(f'<div class="stTotalCreditos">COSTO NETO TOTAL DE CRÉDITOS: ${costo_total_creditos:,}</div>', unsafe_allow_html=True)
+                st.error(f"❌ No se encontró un **Año** donde el valor neto de **${valor_creditos_neto:,}** sea una combinación exacta de créditos para el tipo de estudio **{tipo_estudio.capitalize()}**.")
 
 
 # ==============================================================================
-# 4. Execution
+# 5. Execution
 # ==============================================================================
 
 if __name__ == "__main__":
