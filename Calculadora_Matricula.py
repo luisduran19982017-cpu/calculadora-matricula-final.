@@ -1,7 +1,7 @@
 import streamlit as st
 
 # ==============================================================================
-# 1. Configuration Data (Valores de Crédito e Inscripción mantenidos)
+# 1. Configuration Data (Mantenida)
 # ==============================================================================
 
 # --- Credit values per year and study type ---
@@ -113,36 +113,47 @@ def main_app():
     """Main function to run the Streamlit calculator interface."""
     
     st.title("Calculadora de Distribución de Créditos 🛠️")
-    st.header("Luis Emir Guerrero Duran")
+    st.header("Cálculo Automático por Valor Neto")
 
     # --- User Inputs (Only the total cost is required) ---
     col1, col2 = st.columns([3, 1])
     
     with col1:
-        # El único valor de entrada que define el cálculo
         valor_creditos_neto = st.number_input("Valor NETO de los Créditos ($)", min_value=0, step=1000, format="%d", 
                                      help="Ingrese el costo total que cubren solo los créditos académicos. El programa deducirá el número de créditos.")
     
-    # Se elimina el input de total_creditos.
-
     # --- Year Selection ---
     options_anos = list(VALORES_CREDITO.keys())
     ano = st.selectbox("Selecciona el año de la matrícula", options=options_anos)
 
-    # --- Study Type Selection (Filtered by Year) ---
+    # --- Study Type Selection (Default to Pregrado, but still selectable) ---
     valores_ano = VALORES_CREDITO.get(ano, {})
     
-    # Filtra los tipos de estudio
+    # 1. Filtra los tipos de estudio disponibles para el año seleccionado
     tipos_disponibles = sorted([
         t for t in ["pregrado", "tecnologia", "especializacion", "maestria", "homologacion"]
         if t in valores_ano and (isinstance(valores_ano[t], list) and len(valores_ano[t]) > 0 and valores_ano[t][0] > 0)
     ])
 
     if not tipos_disponibles:
-        st.warning("No hay tipos de estudio disponibles para este año. Verifique la data.")
+        st.error(f"❌ Error: No hay tipos de estudio con valores de crédito definidos para el año {ano}.")
         return 
 
-    tipo_estudio = st.selectbox("Selecciona el tipo de estudio", options=tipos_disponibles)
+    # 2. Establece el índice predeterminado a 'pregrado'
+    try:
+        default_index = tipos_disponibles.index("pregrado")
+    except ValueError:
+        # Si 'pregrado' no está disponible para ese año, usa el primer tipo disponible
+        default_index = 0
+        
+    # 3. Muestra el selector con el valor predeterminado
+    tipo_estudio = st.selectbox(
+        "Selecciona el tipo de estudio", 
+        options=tipos_disponibles, 
+        index=default_index,
+        key=f"tipo_estudio_{ano}" # Clave para que se actualice al cambiar el año
+    )
+
 
     # ==========================================================================
     # Get specific values for the selection
@@ -150,8 +161,8 @@ def main_app():
     
     tipo_estudio_key = tipo_estudio
     if tipo_estudio == "homologacion":
-        tipo_estudio_key = "pregrado" 
-
+        tipo_estudio_key = "pregrado" # Asume que usa la tarifa base de pregrado
+        
     valores_inscripcion_por_ano = VALORES_INSCRIPCION_POR_TIPO.get(ano, {})
     valor_inscripcion = valores_inscripcion_por_ano.get(tipo_estudio_key, 0)
         
@@ -192,28 +203,22 @@ def main_app():
 
         # Case 1: Two Credit Types (Pregrado/Tecnologia) - DEDUCTION LOGIC
         if tipo_estudio in ["pregrado", "tecnologia"] and len(valores_credito) == 2:
-            # v1 = Valor del crédito más barato, v2 = Valor del crédito más caro
             v1, v2 = sorted(valores_credito)
             
-            # Máximo de créditos caros posible (límite práctico: 30)
+            # Límite de búsqueda práctico basado en el costo
             max_creditos_v2 = int(costo_total_creditos / v2) + 1
-            max_creditos_v2 = min(max_creditos_v2, 30) # No buscaremos más de 30 créditos caros
+            max_creditos_v2 = min(max_creditos_v2, 30) 
             
             for x in range(max_creditos_v2 + 1):
-                # Costo cubierto por los 'x' créditos caros
                 costo_v2 = v2 * x
-                
-                # Dinero restante para créditos baratos
                 resto = costo_total_creditos - costo_v2
                 
                 if resto < 0:
                     continue 
 
-                # Si el resto es divisible por el valor del crédito barato (v1)
                 if resto % v1 == 0:
-                    y = resto // v1 # Número de créditos baratos
+                    y = resto // v1 
                     
-                    # Verificación de que no hay decimales
                     if y == int(y):
                         creditos_v1 = int(y)
                         creditos_v2 = x
@@ -230,7 +235,7 @@ def main_app():
             if not solucion_encontrada:
                 st.error(f"❌ No existe una combinación exacta de créditos de **${v1:,}** y **${v2:,}** que sume el valor neto ingresado (${costo_total_creditos:,}).")
 
-        # Case 2: Single Credit Type (Especializacion/Maestria/Homologacion)
+        # Case 2: Single Credit Type 
         elif len(valores_credito) >= 1 and valores_credito[0] > 0:
             v1 = valores_credito[0]
             
