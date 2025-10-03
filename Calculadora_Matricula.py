@@ -121,7 +121,9 @@ def main_app():
     col1, col2 = st.columns(2)
     
     with col1:
-        valor_total = st.number_input("Valor total de la matrícula ($)", min_value=0, step=1000, format="%d")
+        # --- ETIQUETA MODIFICADA PARA CLARIFICAR QUE ES EL COSTO NETO DE CRÉDITOS ---
+        valor_total = st.number_input("Valor NETO de los Créditos ($)", min_value=0, step=1000, format="%d", 
+                                     help="Ingrese el valor total de la matrícula menos los costos de Inscripción y Seguro.")
     
     with col2:
         total_creditos = st.number_input("Número total de créditos", min_value=1, step=1, format="%d")
@@ -170,13 +172,14 @@ def main_app():
 
     st.write(f"📝 **Valor de Inscripción (Referencia):** ${valor_inscripcion:,}")
     st.write(f"🛡️ **Valor del Seguro (Fijo):** ${valor_seguro:,}")
+    st.write(f"💰 **Costo Total (Créditos + Inscripción + Seguro):** ${valor_total + valor_inscripcion + valor_seguro:,} (Suma Estimada)")
     
     st.markdown("---")
 
     # --- Calculation Logic ---
     if st.button("Calcular Distribución de Créditos"):
         
-        # Asumo que el valor_total ingresado es el costo neto de los créditos.
+        # EL VALOR_TOTAL AHORA ES DIRECTAMENTE EL COSTO NETO DE CRÉDITOS
         valor_creditos_neto = valor_total 
         
         st.subheader("Resultado del Cálculo")
@@ -184,11 +187,11 @@ def main_app():
 
         # Case 1: Two Credit Types (Pregrado/Tecnologia)
         if tipo_estudio in ["pregrado", "tecnologia"] and len(valores_credito) == 2:
-            v1, v2 = valores_credito
+            # Asegurar que v1 sea el menor y v2 el mayor para la iteración, 
+            # aunque la data original ya parece ordenada.
+            v1, v2 = sorted(valores_credito)
             
             # Use the input total credits for the loop constraint
-            if v1 > v2: v1, v2 = v2, v1
-            
             for x in range(total_creditos + 1):
                 y = total_creditos - x
                 
@@ -197,14 +200,16 @@ def main_app():
                     st.balloons()
                     st.success(f"""
                         ✅ Se encontró una solución para **{total_creditos}** créditos:
-                        - **{x}** créditos a **${v1:,}** cada uno.
-                        - **{y}** créditos a **${v2:,}** cada uno.
+                        - **{x}** créditos a **${v1:,}** cada uno (Total: ${v1 * x:,}).
+                        - **{y}** créditos a **${v2:,}** cada uno (Total: ${v2 * y:,}).
+                        
+                        **Verificación:** ${v1 * x:,} + ${v2 * y:,} = **${valor_creditos_neto:,}**
                         """)
                     solucion_encontrada = True
                     break
             
             if not solucion_encontrada:
-                st.error("❌ No existe una combinación exacta de créditos que sume el valor total ingresado.")
+                st.error(f"❌ No existe una combinación exacta de **{total_creditos}** créditos que sume el valor neto ingresado (${valor_creditos_neto:,}).")
 
         # Case 2: Single Credit Type (Especializacion/Maestria/Homologacion)
         elif len(valores_credito) >= 1 and valores_credito[0] > 0:
@@ -213,11 +218,11 @@ def main_app():
             if valor_creditos_neto % v1 == 0:
                 creditos_calculados = valor_creditos_neto // v1
                 
-                st.success(f"✅ El valor total ingresado (${valor_total:,}) corresponde exactamente a **{creditos_calculados}** créditos a ${v1:,} cada uno.")
+                st.success(f"✅ El valor neto ingresado (${valor_total:,}) corresponde exactamente a **{creditos_calculados}** créditos a ${v1:,} cada uno.")
                 solucion_encontrada = True
                 
                 if creditos_calculados != total_creditos:
-                    st.info(f"💡 **Nota:** Usted ingresó **{total_creditos}** créditos, pero el valor total sugiere que fueron **{creditos_calculados}** créditos.")
+                    st.info(f"💡 **Nota:** Usted ingresó **{total_creditos}** créditos, pero el valor neto sugiere que fueron **{creditos_calculados}** créditos.")
             
             else:
                 creditos_calculados = valor_creditos_neto / v1
@@ -226,19 +231,19 @@ def main_app():
                 if abs(creditos_calculados - creditos_redondeados) < 0.05:
                      st.warning(f"""
                          ⚠️ El valor total no es exacto, pero se acerca a **{creditos_redondeados}** créditos.
-                         - Valor calculado: ${creditos_calculados:,.2f} créditos.
-                         - Valor por {creditos_redondeados} créditos: ${creditos_redondeados * v1:,}.
+                         - El cálculo arroja **{creditos_calculados:,.2f}** créditos.
+                         - El valor por **{creditos_redondeados}** créditos sería: **${creditos_redondeados * v1:,}**.
                          """)
                      solucion_encontrada = True
                      
                 else:
                     st.error(f"""
-                        ❌ El valor total (${valor_total:,}) no corresponde a un número entero válido de créditos a ${v1:,} cada uno.
+                        ❌ El valor neto (${valor_total:,}) no corresponde a un número entero válido de créditos a ${v1:,} cada uno.
                         - El cálculo arroja **{creditos_calculados:,.2f}** créditos.
                         """)
             
-        if not solucion_encontrada:
-            st.error("❌ No se pudo determinar la distribución de créditos con los valores ingresados. Revise si el valor total de la matrícula incluye otros costos además del crédito.")
+        if not solucion_encontrada and tipo_estudio not in ["pregrado", "tecnologia"]:
+            st.error("❌ No se pudo determinar la distribución de créditos con los valores ingresados. Revise si el valor total de los créditos fue ingresado correctamente.")
 
 
 # ==============================================================================
@@ -248,4 +253,3 @@ def main_app():
 if __name__ == "__main__":
     apply_custom_css()
     main_app()
-
