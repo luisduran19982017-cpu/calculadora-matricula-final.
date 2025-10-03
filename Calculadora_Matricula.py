@@ -1,12 +1,11 @@
 import streamlit as st
 
 # ==============================================================================
-# 1. Configuration Data
+# 1. Configuration Data (Valores de Crédito e Inscripción mantenidos)
 # ==============================================================================
 
-# --- Credit values per year and study type (MAINTAINED) ---
+# --- Credit values per year and study type ---
 VALORES_CREDITO = {
-    # Valores de Crédito (VLR CREDITO)
     "2006-1": {"pregrado": [43000, 60000], "especializacion": [170000]},
     "2006-2": {"pregrado": [46000, 60000], "especializacion": [170000]},
     "2007-1": {"pregrado": [46000, 61000], "especializacion": [171000]},
@@ -33,7 +32,7 @@ VALORES_CREDITO = {
 }
 
 
-# --- Registration (Inscripción) value per year and type (MAINTAINED) ---
+# --- Registration (Inscripción) value per year and type ---
 VALORES_INSCRIPCION_POR_TIPO = {
     "2006-1": {"pregrado": 60000, "especializacion": 96000, "maestria": 0, "tecnologia": 0},
     "2006-2": {"pregrado": 60000, "especializacion": 96000, "maestria": 0, "tecnologia": 0},
@@ -58,7 +57,6 @@ VALORES_INSCRIPCION_POR_TIPO = {
     "2024":   {"pregrado": 182000, "especializacion": 317000, "maestria": 290000, "tecnologia": 182000},
     "2025":   {"pregrado": 199000, "especializacion": 0, "maestria": 317000, "tecnologia": 199000}
 }
-# Nota: Si Especialización 2025 está vacío en la tabla, se usa 0.
 
 # --- Fixed Insurance Value (Valor de Seguro) ---
 VALOR_SEGURO_FIJO = 9000
@@ -115,18 +113,17 @@ def main_app():
     """Main function to run the Streamlit calculator interface."""
     
     st.title("Calculadora de Distribución de Créditos 🛠️")
-    st.header("Verificación de Costo Neto por Crédito")
+    st.header("Cálculo Automático por Valor Neto")
 
-    # --- User Inputs ---
-    col1, col2 = st.columns(2)
+    # --- User Inputs (Only the total cost is required) ---
+    col1, col2 = st.columns([3, 1])
     
     with col1:
-        # Etiqueta clara para el costo de los créditos (clave para la distribución)
+        # El único valor de entrada que define el cálculo
         valor_creditos_neto = st.number_input("Valor NETO de los Créditos ($)", min_value=0, step=1000, format="%d", 
-                                     help="Ingrese el costo total que cubren solo los créditos académicos.")
+                                     help="Ingrese el costo total que cubren solo los créditos académicos. El programa deducirá el número de créditos.")
     
-    with col2:
-        total_creditos = st.number_input("Número total de créditos", min_value=1, step=1, format="%d")
+    # Se elimina el input de total_creditos.
 
     # --- Year Selection ---
     options_anos = list(VALORES_CREDITO.keys())
@@ -143,16 +140,14 @@ def main_app():
 
     if not tipos_disponibles:
         st.warning("No hay tipos de estudio disponibles para este año. Verifique la data.")
-        # Se detiene la ejecución si no hay data de crédito.
         return 
 
     tipo_estudio = st.selectbox("Selecciona el tipo de estudio", options=tipos_disponibles)
 
     # ==========================================================================
-    # Get specific values for the selection (Executed ONLY after the selects above)
+    # Get specific values for the selection
     # ==========================================================================
     
-    # Obtener el valor de inscripción
     tipo_estudio_key = tipo_estudio
     if tipo_estudio == "homologacion":
         tipo_estudio_key = "pregrado" 
@@ -160,15 +155,12 @@ def main_app():
     valores_inscripcion_por_ano = VALORES_INSCRIPCION_POR_TIPO.get(ano, {})
     valor_inscripcion = valores_inscripcion_por_ano.get(tipo_estudio_key, 0)
         
-    # El valor del seguro es fijo, pero se define aquí para el display
     valor_seguro = VALOR_SEGURO_FIJO
-    
     valores_credito = valores_ano.get(tipo_estudio, [0])
     
     st.markdown("---")
     
     # --- Reference Values Display ---
-    # Esta sección SOLO se muestra después de que ano y tipo_estudio han sido seleccionados
     st.subheader("Valores Fijos y de Referencia por Año")
     st.info(f"**Año:** {ano} | **Tipo de Estudio:** {tipo_estudio.capitalize()}")
     
@@ -177,61 +169,75 @@ def main_app():
     elif len(valores_credito) >= 1 and valores_credito[0] > 0:
         st.write(f"🏷️ **Valor de Crédito único:** ${valores_credito[0]:,}")
     else:
-        # Esto no debería ocurrir si los tipos_disponibles están bien filtrados
         st.warning("El valor del crédito es 0 o no está definido. No se puede calcular.")
         return
 
-    # Muestra los valores de Inscripción y Seguro, que dependen de las variables
-    # definidas DESPUÉS de las selecciones de usuario.
     if valor_inscripcion > 0:
         st.write(f"📝 **Costo de Inscripción ({tipo_estudio.capitalize()}):** ${valor_inscripcion:,}")
     else:
         st.write(f"📝 **Costo de Inscripción ({tipo_estudio.capitalize()}):** No definido en la tabla para este año/tipo.")
 
-    # El seguro fijo
     st.write(f"🛡️ **Costo del Seguro (Fijo):** ${valor_seguro:,}")
     
     st.markdown("---")
 
-    # --- Calculation Logic (No changes needed) ---
-    if st.button("Calcular Distribución de Créditos"):
+    # --- Calculation Logic (Deduction based on cost) ---
+    if st.button("Deducir Distribución de Créditos"):
         
         costo_total_creditos = valor_creditos_neto
         solucion_encontrada = False
         
         detalle_creditos = ""
-        total_creditos_usado = total_creditos 
+        total_creditos_deducidos = 0
 
-        # Case 1: Two Credit Types (Pregrado/Tecnologia)
+        # Case 1: Two Credit Types (Pregrado/Tecnologia) - DEDUCTION LOGIC
         if tipo_estudio in ["pregrado", "tecnologia"] and len(valores_credito) == 2:
+            # v1 = Valor del crédito más barato, v2 = Valor del crédito más caro
             v1, v2 = sorted(valores_credito)
             
-            for x in range(total_creditos + 1):
-                y = total_creditos - x
+            # Máximo de créditos caros posible (límite práctico: 30)
+            max_creditos_v2 = int(costo_total_creditos / v2) + 1
+            max_creditos_v2 = min(max_creditos_v2, 30) # No buscaremos más de 30 créditos caros
+            
+            for x in range(max_creditos_v2 + 1):
+                # Costo cubierto por los 'x' créditos caros
+                costo_v2 = v2 * x
                 
-                if v1 * x + v2 * y == costo_total_creditos:
-                    detalle_creditos = f"""
-                        - **{x}** créditos a **${v1:,}** cada uno (Total: ${v1 * x:,})
-                        - **{y}** créditos a **${v2:,}** cada uno (Total: ${v2 * y:,})
-                        """
-                    solucion_encontrada = True
-                    break
+                # Dinero restante para créditos baratos
+                resto = costo_total_creditos - costo_v2
+                
+                if resto < 0:
+                    continue 
+
+                # Si el resto es divisible por el valor del crédito barato (v1)
+                if resto % v1 == 0:
+                    y = resto // v1 # Número de créditos baratos
+                    
+                    # Verificación de que no hay decimales
+                    if y == int(y):
+                        creditos_v1 = int(y)
+                        creditos_v2 = x
+                        
+                        total_creditos_deducidos = creditos_v1 + creditos_v2
+                        
+                        detalle_creditos = f"""
+                            - **{creditos_v1}** créditos a **${v1:,}** cada uno (Total: ${v1 * creditos_v1:,})
+                            - **{creditos_v2}** créditos a **${v2:,}** cada uno (Total: ${v2 * creditos_v2:,})
+                            """
+                        solucion_encontrada = True
+                        break
             
             if not solucion_encontrada:
-                st.error(f"❌ No existe una combinación exacta de **{total_creditos}** créditos que sume el valor neto ingresado (${costo_total_creditos:,}).")
+                st.error(f"❌ No existe una combinación exacta de créditos de **${v1:,}** y **${v2:,}** que sume el valor neto ingresado (${costo_total_creditos:,}).")
 
         # Case 2: Single Credit Type (Especializacion/Maestria/Homologacion)
         elif len(valores_credito) >= 1 and valores_credito[0] > 0:
             v1 = valores_credito[0]
             
             if costo_total_creditos % v1 == 0:
-                creditos_calculados = costo_total_creditos // v1
+                total_creditos_deducidos = costo_total_creditos // v1
                 
-                if creditos_calculados != total_creditos:
-                    st.info(f"💡 **Nota:** El valor neto de ${costo_total_creditos:,} sugiere **{creditos_calculados}** créditos, no los {total_creditos} que ingresó. La distribución se basa en el valor neto.")
-                    total_creditos_usado = creditos_calculados
-                
-                detalle_creditos = f"- **{total_creditos_usado}** créditos a **${v1:,}** cada uno (Total: ${costo_total_creditos:,})"
+                detalle_creditos = f"- **{total_creditos_deducidos}** créditos a **${v1:,}** cada uno (Total: ${costo_total_creditos:,})"
                 solucion_encontrada = True
             
             else:
@@ -244,10 +250,10 @@ def main_app():
         
         # --- Final Results Display ---
         if solucion_encontrada:
-            st.subheader("✅ Distribución de Créditos Verificada ✅")
+            st.subheader("✅ Distribución de Créditos Deducida ✅")
             
             st.markdown("#### Detalle de la Distribución:")
-            st.markdown(f"**Total de Créditos (Verificado por Costo):** **{total_creditos_usado}**")
+            st.markdown(f"**Total de Créditos Deducidos:** **{total_creditos_deducidos}**")
             st.markdown(detalle_creditos)
             
             st.markdown("---")
