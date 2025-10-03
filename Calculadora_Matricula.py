@@ -176,7 +176,7 @@ def main_app():
     st.info(f"**Año:** {ano} | **Tipo de Estudio:** {tipo_estudio.capitalize()}")
     
     if tipo_estudio in ["pregrado", "tecnologia"] and len(valores_credito) == 2:
-        st.write(f"🏷️ **Crédito Ordinario:** ${valores_credito[0]:,} | **Crédito Extraordinario:** ${valores_credito[1]:,}")
+        st.write(f"🏷️ **Crédito Ordinario:** ${valores_credito[0]:,} | Crédito Extraordinario: ${valores_credito[1]:,}")
     elif len(valores_credito) >= 1 and valores_credito[0] > 0:
         st.write(f"🏷️ **Valor de Crédito único:** ${valores_credito[0]:,}")
     else:
