@@ -2,12 +2,9 @@ import streamlit as st
 
 # ==============================================================================
 # 1. Configuration Data
-#    
-#    Valores de Crédito (no modificados, se mantienen los anteriores).
-#    ¡Nuevos Valores de Inscripción según la imagen proporcionada!
 # ==============================================================================
 
-# --- Credit values per year and study type (MAINTAINED FROM PREVIOUS VERSION) ---
+# --- Credit values per year and study type (MAINTAINED) ---
 VALORES_CREDITO = {
     # Valores de Crédito (VLR CREDITO)
     "2006-1": {"pregrado": [43000, 60000], "especializacion": [170000]},
@@ -22,7 +19,6 @@ VALORES_CREDITO = {
     "2013-1": {"pregrado": [66000, 82000], "especializacion": [248000]},
     "2014":   {"pregrado": [69000, 87000], "especializacion": [259000]},
     
-    # Valores de 2015 en adelante (Crédito Especialización y Maestría)
     "2015":   {"pregrado": [70000, 90000], "especializacion": [271000], "maestria": [419000]},
     "2016":   {"pregrado": [77000, 84700], "especializacion": [290000], "maestria": [448000]},
     "2017":   {"pregrado": [83000, 91000], "especializacion": [310000], "maestria": [480000]},
@@ -37,7 +33,7 @@ VALORES_CREDITO = {
 }
 
 
-# --- Registration (Inscripción) value per year and type (UPDATED WITH NEW IMAGE DATA) ---
+# --- Registration (Inscripción) value per year and type (MAINTAINED) ---
 VALORES_INSCRIPCION_POR_TIPO = {
     "2006-1": {"pregrado": 60000, "especializacion": 96000, "maestria": 0, "tecnologia": 0},
     "2006-2": {"pregrado": 60000, "especializacion": 96000, "maestria": 0, "tecnologia": 0},
@@ -66,7 +62,6 @@ VALORES_INSCRIPCION_POR_TIPO = {
 
 # --- Fixed Insurance Value (Valor de Seguro) ---
 VALOR_SEGURO_FIJO = 9000
-# Nota: El valor del seguro se mantiene fijo en $9,000, ya que no se proporcionó data nueva.
 
 
 # ==============================================================================
@@ -148,28 +143,32 @@ def main_app():
 
     if not tipos_disponibles:
         st.warning("No hay tipos de estudio disponibles para este año. Verifique la data.")
-        return
+        # Se detiene la ejecución si no hay data de crédito.
+        return 
 
     tipo_estudio = st.selectbox("Selecciona el tipo de estudio", options=tipos_disponibles)
 
-    # Get specific values for the selection
+    # ==========================================================================
+    # Get specific values for the selection (Executed ONLY after the selects above)
+    # ==========================================================================
     
-    # **Ajuste:** Obtener el valor de inscripción del nuevo diccionario
+    # Obtener el valor de inscripción
     tipo_estudio_key = tipo_estudio
     if tipo_estudio == "homologacion":
-        # Asumimos que la homologación usa el valor de pregrado para la inscripción, si no hay valor
-        # específico en la tabla. En la nueva tabla, solo existen 4 categorías.
         tipo_estudio_key = "pregrado" 
 
     valores_inscripcion_por_ano = VALORES_INSCRIPCION_POR_TIPO.get(ano, {})
     valor_inscripcion = valores_inscripcion_por_ano.get(tipo_estudio_key, 0)
         
+    # El valor del seguro es fijo, pero se define aquí para el display
     valor_seguro = VALOR_SEGURO_FIJO
+    
     valores_credito = valores_ano.get(tipo_estudio, [0])
     
     st.markdown("---")
     
     # --- Reference Values Display ---
+    # Esta sección SOLO se muestra después de que ano y tipo_estudio han sido seleccionados
     st.subheader("Valores Fijos y de Referencia por Año")
     st.info(f"**Año:** {ano} | **Tipo de Estudio:** {tipo_estudio.capitalize()}")
     
@@ -178,20 +177,23 @@ def main_app():
     elif len(valores_credito) >= 1 and valores_credito[0] > 0:
         st.write(f"🏷️ **Valor de Crédito único:** ${valores_credito[0]:,}")
     else:
+        # Esto no debería ocurrir si los tipos_disponibles están bien filtrados
         st.warning("El valor del crédito es 0 o no está definido. No se puede calcular.")
         return
 
-    # Muestra el valor de inscripción con los nuevos datos (SIN SUMARLOS AL TOTAL)
+    # Muestra los valores de Inscripción y Seguro, que dependen de las variables
+    # definidas DESPUÉS de las selecciones de usuario.
     if valor_inscripcion > 0:
         st.write(f"📝 **Costo de Inscripción ({tipo_estudio.capitalize()}):** ${valor_inscripcion:,}")
     else:
         st.write(f"📝 **Costo de Inscripción ({tipo_estudio.capitalize()}):** No definido en la tabla para este año/tipo.")
 
+    # El seguro fijo
     st.write(f"🛡️ **Costo del Seguro (Fijo):** ${valor_seguro:,}")
     
     st.markdown("---")
 
-    # --- Calculation Logic (NO CHANGES HERE, already correct for distribution) ---
+    # --- Calculation Logic (No changes needed) ---
     if st.button("Calcular Distribución de Créditos"):
         
         costo_total_creditos = valor_creditos_neto
@@ -250,7 +252,6 @@ def main_app():
             
             st.markdown("---")
 
-            # Muestra solo la suma de los créditos (sin costos fijos)
             st.markdown(f'<div class="stTotalCreditos">COSTO NETO TOTAL DE CRÉDITOS: ${costo_total_creditos:,}</div>', unsafe_allow_html=True)
 
 
